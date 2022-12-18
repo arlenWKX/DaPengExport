@@ -325,6 +325,6 @@ if __name__ == "__main__":
         c.saveFile()
     c = Exporter()
     c.readConfig()
-    if not c.login():
+    if c.login():
         subprocess.Popen(f'bin\\aria2x.exe --conf-path=config\\aria2.conf')
         c.get_all()
