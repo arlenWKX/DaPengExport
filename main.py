@@ -87,8 +87,9 @@ class Exporter:
             if not self.conf.has_option("user", "cookie") or self.conf.get("user", "cookie") == "":
                 self.getCookie()
             else:
-                self.session.cookies = requests.utils.cookiejar_from_dict(
-                    json.loads(self.conf.get("user", "cookie")))
+                cookie_dict = json.loads(self.conf.get("user", "cookie"))
+                print ( "Cookie:", cookie_dict )
+                self.session.cookies = requests.utils.cookiejar_from_dict(cookie_dict)
             self.session.headers.update({
                 "host": "www.dapengjiaoyu.cn",
                 "Referer": "https://www.dapengjiaoyu.cn/personal-center/course/formal",
@@ -100,16 +101,17 @@ class Exporter:
                 else:
                     print("登陆失败:", res.status_code)
                 return False
-            self.conf.set("user", "cookie", json.dumps(json.dumps(self.session.cookies.get_dict())))
+            self.conf.set("user", "cookie", json.dumps( self.session.cookies.get_dict ( ) ) )
         except requests.exceptions.RequestException:
             print("登陆失败: 网络错误")
             return False
         except Exception as e:
-            print("登陆失败:", __name__ ( e ))
+            print("登陆失败:", type(e).__name__)
+            raise
         else:
-            print ( "登陆成功!" )
-            with open ( 'config\\main.ini', 'w' ) as fp:
-                self.conf.write ( fp )
+            print("登陆成功!")
+            with open('config\\main.ini', 'w') as fp:
+                self.conf.write(fp)
             return True
 
     def job(self, m3u8_url: str, key_url: str, vtitle: str, download_dir: str) -> None:
@@ -216,6 +218,7 @@ class AgentIPCrawler:
         self.raw_proxies: list[list[str, str, str]] = []
 
     def testproxy(self, addr: str) -> list:
+        print ( "测试", addr )
         try:
             resp = requests.get(
                 "https://www.baidu.com",
@@ -226,11 +229,11 @@ class AgentIPCrawler:
                 timeout=5,
             )
             if resp.status_code == 200:
-                return [addr, "", ""]
+                return addr
             else:
-                return []
+                return ""
         except Exception as e:
-            return []
+            return ""
 
     def parseFromTDList(self, tdlist):
         for td in tdlist:
@@ -293,7 +296,10 @@ class AgentIPCrawler:
                 self.parseFromTDList(tr)
 
         print("测速中...")
-        self.proxies = self.tpool.map(self.testproxy, self.raw_proxies).remove([])
+        res = self.tpool.map(self.testproxy, self.raw_proxies)
+        for x in res: #Python3中像range,map这一些函数返回的不是列表而是生成器(generator)，不能直接remove
+            if x != "":
+                self.proxies.append ( x )
 
         proxies = self.proxies
 
@@ -323,6 +329,8 @@ if __name__ == "__main__":
     if not c.loadFile():
         c.getIP()
         c.saveFile()
+    global proxies
+    proxies = c.proxies
     c = Exporter()
     c.readConfig()
     if c.login():
